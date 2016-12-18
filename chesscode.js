@@ -1,39 +1,4 @@
-// general sequence:
-// - reset game - board, listeners, drawing etc
-// - start game. all steps from below onwards will cycle until checkmate occurs or either player resigns
-// - ask player to pick a piece to move
-// - build valid move array for that one piece. 
-// - cancel choice of piece if no valid moves, revert to piece selection
-// - ask player to move chosen piece (according to chess rules, no picking different piece after touch)
-// - if move is in valid move array then go to next step, else warn invalid move and revert to move selection
-// - do checkcheck on own King on the potential board state resulting from move. if true, player is warned and move is cancelled
-// - (should not be possible that all moves result in a check since checkmate check would have been done previous turn)
-// - if no issues, do move and update master board. Remove piece from arraypieces if capture occurs
-// - update board, pieces etc
-// - checkcheck for other player's King position
-// - if in check, do checkMateSearch: 
-//        run all of other player's pieces for all possible viable moves from current board state, 
-//        make a board state for each, and 
-//        for each board state, do a checkcheck on other player's King
-//        if all checkchecks are true, checkMateSearch is true
-//        (holy crap this is computationally expensive)
-// - if above checkMateSearch is true, game is over and other player has lost. 
-// - else change player and goto line 4 above
-// - either player can resign at any time with a button
-// - restart button is seperate, so there is a win/lose screen that lasts until restarted
-
-// notes: 
-// checkcheck takes a king piece and runs all the piece search functions on it to see if any pieces threaten it, 
-//        returns true if threatened. 
-// Should be possible to set up search functions to be symmetrical:
-// - take arguments of piece object to check, and type of check (attack or defend)
-// - attack: scan board starting from piece for valid positions (including enemy positions inside valid moves), update to validmoves
-// (then player can do any move and a capture is just moving onto an existing enemy piece)
-// - defend: same as above but only returns true for enemy positions, and only for enemies that match the search function's type 
-
-// queenSearch is same as rookSearch followed by bishopSearch
-
-var board = [
+var globalBoard = [
   ["000", "000", "000", "000", "000", "000", "000", "000"],
   ["000", "000", "000", "000", "000", "000", "000", "000"],
   ["000", "000", "000", "000", "000", "000", "000", "000"],
@@ -44,28 +9,36 @@ var board = [
   ["000", "000", "000", "000", "000", "000", "000", "000"]
 ]
 
-// universal position tracker, pieces are updated to the board 
-// board stores the names of Piece objects in array index locations
-// to access board use board[y][x]
+// universal position tracker, pieces are updated to here
+// stores the names of Piece objects in array index locations
+// to access use globalBoard[y][x] 
+// where both are zero-index, x increases rightwards and y increases downwards 
 // this is sort of double storing position information that is already in Piece objects, 
-// but otherwise search functions have to access every Piece object once every search
-// and the visualisation here helps to troubleshoot
+// but the visualisation here helps immensely with troubleshooting
 
 var backRowOrder = ["R1", "N1", "B1", "Q1", "K1", "B2", "N2", "R2", ]
 
 // back row pieces per side that need to be made/tracked in the game
 // note the left to right order is on a board where white is bottom, black is top
-// in chess the same left-to-right order is on both sides i.e. queen faces queen, king faces king
+// in chess the same left-to-right order is on both sides i.e. queen faces queen, 
+// king faces king
 
-var arrayPieces = {}
+var pieces = {}
 
 // object to store all piece object instances
 // stored by key = piece instance name, value = piece instance object 
 // captured pieces are deleted from the array
 // promoted pawns only have their type changed, do not change key 
 
+var currentPlayer = "W"
+  // "B" or "W" to represent whose turn it is
+
+var gameState = ""
+  // "waitForPick", "waitForMove"
+
 function Piece(name, color, xPos, yPos, type) {
   //every piece will be an object made here
+  //TESTED
   this.name = name
     //Piece names follow this three character notation:
     // color + type + number
@@ -77,6 +50,7 @@ function Piece(name, color, xPos, yPos, type) {
   this.xPos = xPos
   this.yPos = yPos //tracks position on board
   this.type = type //single character representing type, see below comment notes
+  this.movedBefore = false //set to true with every move. needed for some checks
   this.validMoves = [
       [0, 0, 0, 0, 0, 0, 0, 0],
       [0, 0, 0, 0, 0, 0, 0, 0],
@@ -88,61 +62,147 @@ function Piece(name, color, xPos, yPos, type) {
       [0, 0, 0, 0, 0, 0, 0, 0]
     ]
     // zero represents not a valid position to move to
-    // pieceSearch functions will add ones to positions that are valid to move to
-    // so queenSearch will be rookSearch and then bishopSearch sequentially
-
+    // pieceSearch functions will put 1's in positions that are valid to move to
 }
 
 // MAIN CODE BODY
-setupGame()
+loadGame()
 
-
-function setupGame() {
-  for (var i = 0; i < backRowOrder.length; i++) {
-    //make all pieces as Piece instances
-    var pieceName = backRowOrder[i]
-    arrayPieces["B" + pieceName] = new Piece("B" + pieceName, "black", i, 0, pieceName.charAt(0))
-      //make black backrow
-    arrayPieces["W" + pieceName] = new Piece("W" + pieceName, "white", i, 7, pieceName.charAt(0))
-      //make white backrow
-    arrayPieces["BP" + i] = new Piece("BP" + i, "black", i, 1, "P") //make black pawns
-    arrayPieces["WP" + i] = new Piece("WP" + i, "white", i, 6, "P") //make white pawns
-  }
-  updateBoardArray()
+function loadGame() {
+  // help organise the sequence of actions for initially loading page/game
+  makePieces()
+  updateGlobalBoardArray()
   drawPieces()
   makeListeners()
+  currentPlayer = "White"
+  gameState = "waitForPick"
 }
 
+function restartGame() {
+  //to be done
+}
 
-function updateBoardArray() {
-  for (var key in arrayPieces) {
-    var currentPiece = arrayPieces[key]
-    board[currentPiece.yPos][currentPiece.xPos] = currentPiece.name
+function makePieces() {
+  //builds all the initial game pieces as instances of Piece and places them in pieces
+  //TESTED
+  for (var i = 0; i < backRowOrder.length; i++) {
+    var pieceName = backRowOrder[i]
+    pieces["B" + pieceName] = new Piece("B" + pieceName, "black", i, 0, pieceName.charAt(0))
+      //make black backrow
+    pieces["W" + pieceName] = new Piece("W" + pieceName, "white", i, 7, pieceName.charAt(0))
+      //make white backrow
+    pieces["BP" + i] = new Piece("BP" + i, "black", i, 1, "P") //make black pawns
+    pieces["WP" + i] = new Piece("WP" + i, "white", i, 6, "P") //make white pawns
+  }
+}
+
+function updateGlobalBoardArray() {
+  //takes positions from the piece objects and updates the board array
+  //TESTED
+  for (var key in pieces) {
+    var currentPiece = pieces[key]
+    globalBoard[currentPiece.yPos][currentPiece.xPos] = currentPiece.name
   }
 }
 
 function drawPieces() {
-  for (var y = 0; y < board.length; y++) {
-    for (var x = 0; x < board[0].length; x++) {
-      $("." + y + x).text(board[y][x])
+  // draws pieces on html from globalBoard array
+  // TESTED
+  for (var y = 0; y < globalBoard.length; y++) {
+    for (var x = 0; x < globalBoard[0].length; x++) {
+      $("." + y + x).text(globalBoard[y][x])
     }
   }
 }
 
 function makeListeners() {
-  board.forEach(function(row, rowNo, board) {
+  // attaches listeners to HTML cells and other buttons
+  // TESTED
+  globalBoard.forEach(function(row, rowNo, board) {
     row.forEach(function(col, colNo, row) {
       var y = rowNo
       var x = colNo
-      $("." + y + x).on("click",function () {
-      boxClick(x, y)
+      $("." + y + x).on("click", function() {
+        cellClick(x, y)
       })
     })
   })
 }
 
-function boxClick(x, y) {
+function cellClick(x, y) {
+  // runs logic for what to do when HTML cell is clicked
   console.log("Box at", x, y, "clicked")
 }
 
+//MOVE SEARCHING:
 
+function pieceSearch(xpos, ypos, pieceType, boardToSearch, validMoves) {
+  // takes a piece and related info and returns array with valid moves added
+  // parameters:
+  //    x and y positions of piece,
+  //    type of piece, 
+  //    arbitrary board  
+  //    arbitrary validMoves array
+  // Reverse searches are searches that require the new move position to be occupied by
+  // specified piece type. Used for check and checkmate searches
+  switch (pieceType) {
+    case "K":
+      console.log("K search triggered")
+      break
+      return kingSearch(xpos, ypos, boardToSearch, validMoves)
+    case "Q":
+      console.log("Q search triggered")
+      break
+      // rookedValidMoves = rookSearch(localBoard,validMovesArray)
+      // return bishopSearch(localBoard,rookedValidMovesArray)  
+  }
+}
+
+function kingSearch(xpos, ypos, boardToSearch, validMoves, isReverseCheck) {
+  // checks eight neighbouring cells for valid moves
+  // for time being (MVP) no castling check
+  // if isReverseCheck(optional) is true, only enemy King locations are validMoves
+  if (typeof isReverseCheck === "undefined") isReverseCheck = false
+    // search 3 cells a rank in front of and behind piece:
+  for (var x = -1; x < 2; x++) {
+    ifCellAvailableAddValidMove(xpos + x, ypos - 1, currentPlayer, boardToSearch, validMoves)
+    ifCellAvailableAddValidMove(xpos + x, ypos + 1, currentPlayer, boardToSearch, validMoves)
+  }
+  // search one cell on either side on same rank
+  ifCellAvailableAddValidMove(xpos + 1, ypos, currentPlayer, boardToSearch, validMoves)
+  ifCellAvailableAddValidMove(xpos - 1, ypos, currentPlayer, boardToSearch, validMoves)
+}
+
+function ifCellAvailableAddValidMove(
+  xpos, ypos, alliedColor, board, validMoves, isReverseCheck, pieceType) {
+  // checks a cell on board and if available, sets same cell on validMoves to 1
+  // last two parameters optional
+  // cell is available if:
+  //    isReverseCheck is false and cell is not allied color
+  //    isReverseCheck is true and cell is not allied color and cell is of pieceType
+  // TESTED
+
+  if (typeof isReverseCheck === "undefined") isReverseCheck = false
+  if (ypos < 8 && xpos < 8 && ypos > -1 && xpos > -1) { //reject positions outside board
+    if (board[ypos][xpos].charAt(0) !== alliedColor) { //check if cell is not allied (i.e valid move)
+      if (!isReverseCheck) {
+        validMoves[ypos][xpos] = 1
+      } else if (isReverseCheck && board[ypos][xpos].charAt(1) === pieceType) {
+        validMoves[ypos][xpos] = 1
+      }
+    }
+  }
+}
+
+testVM = [
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0]
+]
+kingSearch(4, 0, globalBoard, testVM)
+console.log(testVM)

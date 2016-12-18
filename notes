@@ -1,0 +1,53 @@
+
+// general sequence:
+// - reset game - board, listeners, drawing etc
+// - start game. all steps from below onwards will cycle until checkmate occurs or either player resigns
+// - ask player to pick a piece to move
+// - build valid move array for that one piece. 
+// - cancel choice of piece if no valid moves, revert to piece selection
+// - ask player to move chosen piece (according to chess rules, no picking different piece after touch)
+// - if move is in valid move array then go to next step, else warn invalid move and revert to move selection
+// - do checkcheck on own King on the potential board state resulting from move. if true, player is warned and move is cancelled
+// - (should not be possible that all moves result in a check since checkmate check would have been done previous turn)
+// - if no issues, do move and update master board. Remove piece from arraypieces if capture occurs
+// - update board, pieces etc
+// - checkcheck for other player's King position
+// - if in check, do checkMateSearch: 
+//        run all of other player's pieces for all possible viable moves from current board state, 
+//        make a board state for each, and 
+//        for each board state, do a checkcheck on other player's King
+//        if all checkchecks are true, checkMateSearch is true
+//        (holy crap this is computationally expensive)
+// - if above checkMateSearch is true, game is over and other player has lost. 
+// - else change player and goto line 4 above
+// - either player can resign at any time with a button
+// - restart button is seperate, so there is a win/lose screen that lasts until restarted
+// notes: 
+// checkcheck takes a king piece and runs all the piece search functions on it to see if any pieces threaten it, 
+// returns true if threatened. 
+// Should be possible to set up search functions to be symmetrical:
+// - take arguments of piece object to check, and type of check (attack or defend)
+// - attack: scan board starting from piece for valid positions (including enemy positions inside valid moves), update to validmoves
+// (then player can do any move and a capture is just moving onto an existing enemy piece)
+// - defend: same as above but only returns true for enemy positions, and only for enemies that match the search function's type 
+// queenSearch is same as rookSearch followed by bishopSearch
+// castling notes:
+  // Once in every game, each king is allowed to make a special move, known as castling. 
+  // Castling consists of moving the king two squares along the first rank toward a rook 
+  // (which is on the player's first rank[note 1]) and then placing the rook on the last square 
+  // that the king has just crossed. Castling is permissible under the following conditions:
+  // Neither the king nor the rook have previously moved during the game.
+  // There cannot be any pieces between the king and the rook.
+  // The king cannot be in check, nor can the king pass through squares that are under attack 
+  // by enemy pieces, or move to a square where it would result in a check.
+  // Note that castling is permissible if the rook is attacked, or if the rook crosses a square 
+  // that is attacked.
+
+// MVP: 
+// no castling 
+// no en passant
+// check and checkmate are in
+// no draw detection becoz too many draw conditions to check
+
+// Coding notes:
+// TESTED comment means works as written, does not mean function is finished
