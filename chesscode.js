@@ -13,15 +13,11 @@ var globalBoard = [
 // stores the names of Piece objects in array index locations
 // to access use globalBoard[y][x] 
 // where both are zero-index, x increases rightwards and y increases downwards 
-// this is sort of double storing position information that is already in Piece objects, 
-// but the visualisation here helps immensely with troubleshooting
 
 var backRowOrder = ["R1", "N1", "B1", "Q1", "K1", "B2", "N2", "R2", ]
 
 // back row pieces per side that need to be made/tracked in the game
 // note the left to right order is on a board where white is bottom, black is top
-// in chess the same left-to-right order is on both sides i.e. queen faces queen, 
-// king faces king
 
 var pieces = {}
 
@@ -97,7 +93,7 @@ function makePieces() {
 }
 
 function updateGlobalBoardArray() {
-  //takes positions from the piece objects and updates the board array
+  //takes positions from the piece objects and updates the globalBoard
   //TESTED
   for (var key in pieces) {
     var currentPiece = pieces[key]
@@ -139,12 +135,12 @@ function cellClick(x, y) {
 function pieceSearch(xpos, ypos, pieceType, boardToSearch, validMoves) {
   // takes a piece and related info and returns array with valid moves added
   // parameters:
-  //    x and y positions of piece,
+  //    x and y positions of origin piece,
   //    type of piece, 
-  //    arbitrary board  
-  //    arbitrary validMoves array
-  // Reverse searches are searches that require the new move position to be occupied by
-  // specified piece type. Used for check and checkmate searches
+  //    a board array 
+  //    a validMoves array
+  // Reverse searches are searches that require the target move position to be occupied by
+  // specified piece type. Used for check/checkmate to see if origin cell is threatened
   switch (pieceType) {
     case "K":
       console.log("K search triggered")
@@ -165,12 +161,12 @@ function kingSearch(xpos, ypos, boardToSearch, validMoves, isReverseCheck) {
   if (typeof isReverseCheck === "undefined") isReverseCheck = false
     // search 3 cells a rank in front of and behind piece:
   for (var x = -1; x < 2; x++) {
-    ifCellAvailableAddValidMove(xpos + x, ypos - 1, currentPlayer, boardToSearch, validMoves)
-    ifCellAvailableAddValidMove(xpos + x, ypos + 1, currentPlayer, boardToSearch, validMoves)
+    ifCellAvailableAddValidMove(xpos + x, ypos - 1, currentPlayer, boardToSearch, validMoves, isReverseCheck, "K")
+    ifCellAvailableAddValidMove(xpos + x, ypos + 1, currentPlayer, boardToSearch, validMoves, isReverseCheck, "K")
   }
   // search one cell on either side on same rank
-  ifCellAvailableAddValidMove(xpos + 1, ypos, currentPlayer, boardToSearch, validMoves)
-  ifCellAvailableAddValidMove(xpos - 1, ypos, currentPlayer, boardToSearch, validMoves)
+  ifCellAvailableAddValidMove(xpos + 1, ypos, currentPlayer, boardToSearch, validMoves, isReverseCheck, "K")
+  ifCellAvailableAddValidMove(xpos - 1, ypos, currentPlayer, boardToSearch, validMoves, isReverseCheck, "K")
 }
 
 function ifCellAvailableAddValidMove(
@@ -204,5 +200,6 @@ testVM = [
   [0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0]
 ]
-kingSearch(4, 0, globalBoard, testVM)
+currentPlayer = "W"
+kingSearch(5, 0, globalBoard, testVM, true)
 console.log(testVM)
