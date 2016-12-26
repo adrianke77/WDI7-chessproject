@@ -265,6 +265,8 @@ Board.prototype.checkCheck = function(player) {
     for (var j = 0; j < 8; j++)
       this.layout[blackY][blackX].validMoves[j][i] = 0
     // clear validMoves for king pieces
+    // should not affect other things because this is after move and before pick
+    
 
 
 
