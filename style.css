@@ -36,17 +36,17 @@ html. body {
   justify-content : center;
 }
 .box {
-  display : flex;
-  flex-direction: row;
-  height  : 41px;
-  width   : 41px;
-  margin  : 1px;
-  border  : 1px solid black;
-  justify-content: center;
-  align-items: center;
+  display         : flex;
+  height          : 41px;
+  width           : 41px;
+  margin          : 1px;
+  border          : 1px solid black;
+  flex-direction  : row;
+  justify-content : center;
+  align-items     : center;
 }
 .selected {
-  box-shadow: 4px blue;
+  outline: 5px solid blue;
 }
 .sprites {
   background      : url('./chess-figures.png') no-repeat;
@@ -59,32 +59,32 @@ html. body {
   background-position : -2px -38px;
 }
 .spriteBB{
-  background-position: -42px -1px; 
+  background-position : -42px -1px;
 }
 .spriteBW{
-  background-position: -42px -38px
+  background-position : -42px -38px
 }
 .spriteQB{
-  background-position: -82px -1px;
+  background-position : -82px -1px;
 }
-.spriteQW{    
-  background-position: -82px -38px
+.spriteQW{
+  background-position : -82px -38px
 }
 .spriteKB{
-  background-position: -122px -1px
+  background-position : -122px -1px
 }
 .spriteKW{
-  background-position: -122px -38px
+  background-position : -122px -38px
 }
 .spriteNB{
-  background-position: -162px -1px
+  background-position : -162px -1px
 }
 .spriteNW{
-  background-position: -162px -38px
+  background-position : -162px -38px
 }
 .spritePB{
-  background-position: -202px -1px
+  background-position : -202px -1px
 }
 .spritePW{
-  background-position: -202px -38px
+  background-position : -202px -38px
 }
